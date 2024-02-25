@@ -34,3 +34,5 @@ def text_to_gloss(text: str, language: str, ignore_punctuation: bool = False) ->
         glosses.append(gloss)
 
     return glosses
+
+#gloss = text_to_gloss('i like this colour', 'en')
