@@ -8,9 +8,11 @@ LANGUAGE_MODELS_SPACY = {
     "it": "it_core_news_lg",
     "en": "en_core_web_lg",
 }
+spacy_model = None
 
 
 def text_to_gloss(text: str, language: str, ignore_punctuation: bool = False) -> Gloss:
+    global spacy_model
 
     if language not in LANGUAGE_MODELS_SPACY:
         raise NotImplementedError("Don't know language '%s'." % language)
@@ -19,7 +21,8 @@ def text_to_gloss(text: str, language: str, ignore_punctuation: bool = False) ->
 
     # disable unnecessary components to make lemmatization faster
 
-    spacy_model = load_spacy_model(model_name, disable=("parser", "ner"))
+    if spacy_model is None:
+        spacy_model = load_spacy_model(model_name, disable=("parser", "ner"))
 
     doc = spacy_model(text)
 
