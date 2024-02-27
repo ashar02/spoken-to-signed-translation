@@ -1,6 +1,9 @@
 import os
 from collections import defaultdict
 from typing import List
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import time
 
 from pose_format import Pose
 
@@ -10,6 +13,20 @@ from spoken_to_signed.text_to_gloss.types import Gloss
 class PoseLookup:
     def __init__(self, rows: List, directory: str = None):
         self.directory = directory
+
+        load_dotenv()
+        connection_string = os.getenv('DB_URI')
+        if connection_string:
+            self.client = MongoClient(connection_string)
+            while True:
+                try:
+                    self.client = MongoClient(connection_string)
+                    self.db = self.client['translate']
+                    print("Connected to the database.")
+                    break
+                except Exception as e:
+                    print(f"Failed to connect to the database. Retrying in 5 seconds... Error: {e}")
+                    time.sleep(5)
 
         self.words_index = self.make_dictionary_index(rows, based_on="words")
         self.glosses_index = self.make_dictionary_index(rows, based_on="glosses")
@@ -65,6 +82,19 @@ class PoseLookup:
 
         raise FileNotFoundError
 
+    def lookup_db(self, word: str, gloss: str, spoken_language: str, signed_language: str, source: str = None) -> Pose:
+        collection = self.db['lexicals']
+        query = {
+            'spoken': spoken_language,
+            'signed': signed_language,
+            'text': gloss
+        }
+        document = collection.find_one(query)
+        if document:
+            pose_data = document['pose']
+            return Pose.read(pose_data)
+        raise FileNotFoundError
+
     def lookup_sequence(self, glosses: Gloss, spoken_language: str, signed_language: str, source: str = None):
         poses: List[Pose] = []
         for word, gloss in glosses:
@@ -73,6 +103,34 @@ class PoseLookup:
                 poses.append(pose)
             except FileNotFoundError:
                 pass
+
+        if len(poses) == 0:
+            gloss_sequence = ' '.join([f"{word}/{gloss}" for word, gloss in glosses])
+            raise Exception(f"No poses found for {gloss_sequence}")
+
+        return poses
+
+    def lookup_sequence_db(self, glosses: Gloss, spoken_language: str, signed_language: str, source: str = None):
+        collection = self.db['lexicals']
+        unique_glosses = {gloss for _, gloss in glosses}
+        query = {
+            "$or": [
+                {
+                    "spoken": spoken_language,
+                    "signed": signed_language,
+                    "text": gloss
+                } for gloss in unique_glosses
+            ]
+        }
+        print('mongo start')
+        documents = list(collection.find(query))
+        print('mongo end')
+        poses: List[Pose] = []
+        for word, gloss in glosses:
+            for document in documents:
+                if document['text'] == gloss:
+                    poses.append(Pose.read(document['pose']))
+                    break
 
         if len(poses) == 0:
             gloss_sequence = ' '.join([f"{word}/{gloss}" for word, gloss in glosses])

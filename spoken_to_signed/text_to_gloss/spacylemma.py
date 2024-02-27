@@ -8,11 +8,11 @@ LANGUAGE_MODELS_SPACY = {
     "it": "it_core_news_lg",
     "en": "en_core_web_lg",
 }
-spacy_model = None
+spacy_model_g = load_spacy_model('en_core_web_lg', disable=("parser", "ner"))
 
 
 def text_to_gloss(text: str, language: str, ignore_punctuation: bool = False) -> Gloss:
-    global spacy_model
+    global spacy_model_g
 
     if language not in LANGUAGE_MODELS_SPACY:
         raise NotImplementedError("Don't know language '%s'." % language)
@@ -21,10 +21,10 @@ def text_to_gloss(text: str, language: str, ignore_punctuation: bool = False) ->
 
     # disable unnecessary components to make lemmatization faster
 
-    if spacy_model is None:
-        spacy_model = load_spacy_model(model_name, disable=("parser", "ner"))
+    if spacy_model_g is None:
+        spacy_model_g = load_spacy_model(model_name, disable=("parser", "ner"))
 
-    doc = spacy_model(text)
+    doc = spacy_model_g(text)
 
     glosses = []  # type: Gloss
 
@@ -37,5 +37,3 @@ def text_to_gloss(text: str, language: str, ignore_punctuation: bool = False) ->
         glosses.append(gloss)
 
     return glosses
-
-#gloss = text_to_gloss('i like this colour', 'en')
