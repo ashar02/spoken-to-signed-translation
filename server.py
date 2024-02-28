@@ -4,9 +4,11 @@ from spoken_to_signed.text_to_gloss.spacylemma import text_to_gloss
 from spoken_to_signed.gloss_to_pose import gloss_to_pose, CSVPoseLookup
 from dotenv import load_dotenv
 from io import BytesIO
+from flask_compress import Compress
 
 load_dotenv()
 app = Flask(__name__)
+Compress(app)
 
 @app.route('/spoken_text_to_signed_pose', methods=['GET'])
 def text_to_glosses():
