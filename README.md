@@ -1,93 +1,151 @@
-# spoken-to-signed-translation
+# Gloss-Based Pipeline for Spoken to Signed Language Translation
 
+a `text-to-gloss-to-pose-to-video` pipeline for spoken to signed language translation.
 
+- Demos available for:
+  - 🇩🇪 [Swiss German Sign Language](https://sign.mt/?sil=sgg&spl=de) 🇨🇭
+  - 🇫🇷 [French Sign Language of Switzerland](https://sign.mt/?sil=ssr&spl=fr)🇨🇭
+  - 🇮🇹 [Italian Sign Language of Switzerland](https://sign.mt/?sil=slf&spl=it) 🇨🇭
 
-## Getting started
+- Paper available on [arxiv](https://arxiv.org/abs/2305.17714), presented
+  at [AT4SSL 2023](https://sites.google.com/tilburguniversity.edu/at4ssl2023/).
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+![Visualization of our pipeline](assets/pipeline.jpg)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Install
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/ashar_02/spoken-to-signed-translation.git
-git branch -M main
-git push -uf origin main
+```bash
+pip install git+https://github.com/ZurichNLP/spoken-to-signed-translation.git
 ```
 
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://gitlab.com/ashar_02/spoken-to-signed-translation/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+Then, to download a lexicon, run:
+```bash
+download_lexicon \
+  --name <signsuisse> \
+  --directory <path_to_directory>
+```
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+For language codes, we use the [IANA Language Subtag Registry](https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry).
+Our pipeline provides multiple scripts. 
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+To quickly demo it using a dummy lexicon, run:
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+<a target="_blank" href="https://colab.research.google.com/drive/1UtBmfBIhUa2EdLMnWJr0hxAOZelQ50_9?usp=sharing">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+```bash
+git clone https://github.com/ZurichNLP/spoken-to-signed-translation
+cd spoken-to-signed-translation
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+text_to_gloss_to_pose \
+  --text "Kleine Kinder essen Pizza." \
+  --glosser "simple" \
+  --lexicon "assets/dummy_lexicon" \
+  --spoken-language "de" \
+  --signed-language "sgg" \
+  --pose "quick_test.pose"
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
 
-## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+#### Text-to-Gloss Translation
+
+This script translates input text into gloss notation. 
+
+```bash
+text_to_gloss \
+  --text <input_text> \
+  --glosser <simple|spacylemma|rules|nmt> \
+  --spoken-language <de|fr|it> \
+  --signed-language <sgg|ssr|slf>
+```
+
+#### Pose-to-Video Conversion
+
+This script converts a pose file into a video file.
+
+```bash
+pose_to_video \
+  --pose <pose_file_path>.pose \
+  --video <output_video_file_path>.mp4
+```
+
+#### Text-to-Gloss-to-Pose Translation
+
+This script translates input text into gloss notation, then converts the glosses into a pose file.
+
+```bash
+text_to_gloss_to_pose \
+  --text <input_text> \
+  --glosser <simple|spacylemma|rules|nmt> \
+  --lexicon <path_to_directory> \
+  --spoken-language <de|fr|it> \
+  --signed-language <sgg|ssr|slf> \
+  --pose <output_pose_file_path>.pose
+```
+
+#### Text-to-Gloss-to-Pose-to-Video Translation
+
+This script translates input text into gloss notation, converts the glosses into a pose file, and then transforms the pose file into a video.
+
+```bash
+text_to_gloss_to_pose_to_video \
+  --text <input_text> \
+  --glosser <simple|spacylemma|rules|nmt> \
+  --lexicon <path_to_directory> \
+  --spoken-language <de|fr|it> \
+  --signed-language <sgg|ssr|slf> \
+  --video <output_video_file_path>.mp4
+```
+
+## Methodology
+
+The pipeline consists of three main components:
+
+1. **Text-to-Gloss Translation:**
+   Transforms the input (spoken language) text into a sequence of glosses.
+
+- [Simple lemmatizer](src/text_to_gloss/simple.py),
+- [Spacy lemmatizer: more accurate, but slower lemmatization, covering fewer languages than `simple`](src/text_to_gloss/spacylemma.py),
+- [Rule-based word reordering and dropping](src/text_to_gloss/rules.py) component
+- [Neural machine translation system](src/text_to_gloss/nmt.py).
+
+2. **Gloss-to-Pose Conversion:**
+
+- [Lookup](src/gloss_to_pose/lookup.py): Uses a lexicon of signed languages to convert the sequence of glosses into a
+  sequence of poses.
+- [Pose Concatenation](src/gloss_to_pose/concatenate.py): The poses are then cropped, concatenated, and smoothed,
+  creating a pose representation for the input sentence.
+
+3. **Pose-to-Video Generation:** Transforms the processed pose video back into a synthesized video using an image
+   translation model.
+
+## Supported Languages
+
+| Language                    | IANA Code | Glossers Supported                                                                                                                                         | Lexicon Data Source                                  |
+|-----------------------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
+| Swiss German Sign Language  | sgg       | `simple`, `spacylemma`, `rules`, [`nmt`](https://github.com/ZurichNLP/spoken-to-signed-translation/tree/main/spoken_to_signed/text_to_gloss#nmt-component) | [SignSuisse (de)](https://signsuisse.sgb-fss.ch/de/) |
+| Swiss French Sign Language  | ssr       | `simple`, `spacylemma`                                                                                                                                                   | [SignSuisse (fr)](https://signsuisse.sgb-fss.ch/fr/) |
+| Swiss Italian Sign Language | slf       | `simple`, `spacylemma`                                                                                                                                                   | [SignSuisse (it)](https://signsuisse.sgb-fss.ch/it/) |
+| German Sign Language        | gsg       | `simple`, `spacylemma`, [`nmt`](https://github.com/ZurichNLP/spoken-to-signed-translation/tree/main/spoken_to_signed/text_to_gloss#nmt-component)                        | WordNet (Coming Soon)                                |
+| British Sign Language       | bfi       | `simple`, `spacylemma`, [`nmt`](TODO-model-link)                                                                                                                         | WordNet (Coming Soon)                                |
+
+
+## Citation
+
+If you find this work useful, please cite our paper:
+
+```bib
+@inproceedings{moryossef2023baseline,
+  title={An Open-Source Gloss-Based Baseline for Spoken to Signed Language Translation},
+  author={Moryossef, Amit and M{\"u}ller, Mathias and G{\"o}hring, Anne and Jiang, Zifan and Goldberg, Yoav and Ebling, Sarah},
+  booktitle={2nd International Workshop on Automatic Translation for Signed and Spoken Languages (AT4SSL)},
+  year={2023},
+  month={June},
+  url={https://github.com/ZurichNLP/spoken-to-signed-translation},
+  note={Available at: \url{https://arxiv.org/abs/2305.17714}}
+}
+```
