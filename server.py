@@ -62,7 +62,7 @@ if __name__ == '__main__':
             'threads': int(os.getenv('GUNICORN_THREADS', 1)),
             'certfile': ssl_context[0],
             'keyfile': ssl_context[1],
-            'loglevel': 'debug'
+            'loglevel': 'error'
         }
         class FlaskApplication(BaseApplication):
             def __init__(self, app, options=None):
