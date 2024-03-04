@@ -1,9 +1,10 @@
 import os
 from collections import defaultdict
 from typing import List
-from pymongo import MongoClient
+from pymongo import MongoClient, InsertOne
 from dotenv import load_dotenv
 import time
+import threading
 
 from pose_format import Pose
 
@@ -111,7 +112,7 @@ class PoseLookup:
         return poses
 
     def lookup_sequence_db(self, glosses: Gloss, spoken_language: str, signed_language: str, source: str = None):
-        collection = self.db['lexicals']
+        lexicals = self.db['lexicals']
         unique_glosses = {gloss for _, gloss in glosses}
         query = {
             "$or": [
@@ -122,18 +123,42 @@ class PoseLookup:
                 } for gloss in unique_glosses
             ]
         }
-        print('mongo start')
-        documents = list(collection.find(query))
-        print('mongo end')
+        #print('mongo start')
+        documents = list(lexicals.find(query))
+        #print('mongo end')
         poses: List[Pose] = []
+        poses_not_found: List[str] = []
         for word, gloss in glosses:
+            found = False
             for document in documents:
                 if document['text'] == gloss:
                     poses.append(Pose.read(document['pose']))
+                    found = True
                     break
-
+            if not found:
+                poses_not_found.append(gloss)
+        if poses_not_found:
+            self.insert_not_found_glosses_async(poses_not_found, spoken_language, signed_language)
         if len(poses) == 0:
             gloss_sequence = ' '.join([f"{word}/{gloss}" for word, gloss in glosses])
             raise Exception(f"No poses found for {gloss_sequence}")
 
         return poses
+
+    def insert_not_found_glosses_async(self, glosses: List[str], spoken_language: str, signed_language: str):
+        def run():
+            lexicals_not_found = self.db['lexicals_not_found']
+            bulk_operations = [
+                InsertOne({
+                    "spoken": spoken_language,
+                    "signed": signed_language,
+                    "text": gloss,
+                }) for gloss in glosses
+            ]
+            try:
+                lexicals_not_found.bulk_write(bulk_operations, ordered=False)
+            except Exception as e:
+                print(f"Error inserting glosses: {e}")
+
+        #run()
+        threading.Thread(target=run).start()
