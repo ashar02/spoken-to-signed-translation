@@ -13,10 +13,20 @@ dependencies = [
     "scipy", # Used for savgol filter
     "simplemma", # Used generally for "simple" text_to_gloss, and in download_lexicon
     # Optional modules, used in different parts of the pipeline:
-    # "spacy", # used for "rules" and "spacylemma" text_to_gloss components
+    "mediapipe",
+    "spacy", # used for "rules" and "spacylemma" text_to_gloss components
     # "sentencepiece", # used for "nmt" text_to_gloss component
     # "sockeye==3.1.10", # used for "nmt" text_to_gloss component
     # "sign-language-datasets" # used for download_lexicon script
+    # Module for running Flask Server
+    "flask",
+    "pymongo",
+    # "fcntl",
+    "python-dotenv",
+    "flask_compress",
+    "gunicorn",
+    # Helping modules
+    "opencv-python"
 ]
 
 [project.optional-dependencies]
