@@ -13,6 +13,7 @@ import cv2
 
 load_dotenv()
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB
 Compress(app)
 
 @app.route('/spoken_text_to_signed_pose', methods=['GET'])
@@ -68,6 +69,9 @@ def video_to_pose():
 
     if not allowed_file(video_file.filename):
         return 'Invalid video file format, must be mp4 or webm', 400
+    
+    if request.content_length > app.config['MAX_CONTENT_LENGTH']:
+        return 'File size exceeds maximum limit', 413
 
     # Create a temporary directory to store the uploaded video file
     temp_dir = tempfile.mkdtemp()
