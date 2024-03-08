@@ -10,6 +10,7 @@ import tempfile
 # import subprocess
 from pose_format.utils.holistic import load_holistic
 import cv2
+import shutil
 
 load_dotenv()
 app = Flask(__name__)
@@ -99,11 +100,27 @@ def video_to_pose():
     # Create a Flask response with the pose data
     response = Response(pose_data, headers=headers)
 
-    # Remove the temporary directory and its contents
-    # subprocess.run(['rm', '-rf', temp_dir])
+    # Remove the uploaded video file
+    delete_file(temp_video_path)
+    delete_file(output_pose_path)
+    # Remove the temp directory of video file
+    delete_temp_dir(temp_dir)
 
     return response
 
+# Function to delete a file
+def delete_file(file_path):
+    try:
+        os.remove(file_path)
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+
+# Function to delete a directory and its contents
+def delete_temp_dir(temp_dir):
+    try:
+        shutil.rmtree(temp_dir)
+    except Exception as e:
+        print(f"Error deleting temporary directory: {e}")
 
 def load_video_frames(cap: cv2.VideoCapture):
     while True:
