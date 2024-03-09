@@ -11,6 +11,10 @@ load_dotenv()
 app = Flask(__name__)
 Compress(app)
 
+
+def remove_unsupported_characters(text):
+    return ''.join(char for char in text if ord(char) <= 255)
+
 @app.route('/spoken_text_to_signed_pose', methods=['GET'])
 def text_to_glosses():
     worker_pid = os.getpid()
@@ -44,13 +48,15 @@ def text_to_glosses():
         buffer.close()
         response = Response(binary_data, mimetype='application/pose')
         for key, value in headers.items():
-            response.headers[key] = value
+            cleaned_key = remove_unsupported_characters(key)
+            cleaned_value = remove_unsupported_characters(value)
+            response.headers[cleaned_key] = cleaned_value
         return response
     except (KeyError, ValueError) as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         print(f"Unexpected error: {e}")
-        return jsonify({'message': str(e)}), 500
+        return jsonify({'message': str(e.message)}), 500
 
 if __name__ == '__main__':
     if os.getenv('PM2_HOME'):
