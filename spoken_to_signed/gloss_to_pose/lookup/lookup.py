@@ -5,6 +5,7 @@ from pymongo import MongoClient, InsertOne
 from dotenv import load_dotenv
 import time
 import threading
+from datetime import datetime
 
 from pose_format import Pose
 
@@ -153,6 +154,7 @@ class PoseLookup:
                     "spoken": spoken_language,
                     "signed": signed_language,
                     "text": gloss,
+                    "createdAt": datetime.now()
                 }) for gloss in glosses
             ]
             try:

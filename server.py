@@ -61,8 +61,17 @@ def text_to_glosses():
     except (KeyError, ValueError) as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        print(f"Unexpected error: {e}")
-        return jsonify({'message': str(e.message)}), 500
+        if isinstance(e, str):
+            error_message = e
+        elif isinstance(e, dict) and 'message' in e:
+            error_message = e['message']
+        else:
+            error_message = str(e)
+        print(f"Unexpected error: {error_message}")
+        if os.getenv('PM2_HOME'):
+            return jsonify(error_message), 500
+        else:
+            return jsonify({'message': error_message}), 500
 
 @app.route('/video_to_pose', methods=['POST'])
 def video_to_pose():
