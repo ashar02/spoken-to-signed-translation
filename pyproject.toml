@@ -8,16 +8,18 @@ authors = [
 ]
 readme = "README.md"
 dependencies = [
-    "pose-format",
+    "pose-format>=0.4.1",
     "numpy",
     "scipy", # Used for savgol filter
     "simplemma", # Used generally for "simple" text_to_gloss, and in download_lexicon
     # Optional modules, used in different parts of the pipeline:
     "mediapipe",
+    "pose_anonymization @ git+https://github.com/sign-language-processing/pose-anonymization", # Used for anonymization
     "spacy", # used for "rules" and "spacylemma" text_to_gloss components
     # "sentencepiece", # used for "nmt" text_to_gloss component
     # "sockeye==3.1.10", # used for "nmt" text_to_gloss component
     # "sign-language-datasets" # used for download_lexicon script
+    # "gcsfs", # When files are stored on Google Cloud Storage
     # Module for running Flask Server
     "flask",
     "pymongo",
