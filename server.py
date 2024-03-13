@@ -42,7 +42,8 @@ def text_to_glosses():
         supported_words = '-'.join([word for word, _ in glosses])
         filename = supported_words + '.pose'
         headers = {
-            'Cache-Control': 'public, max-age=3600',
+            #'Cache-Control': 'public, max-age=3600',
+            'Cache-Control': 'no-store',
             'Content-Disposition': f'inline; filename="{filename}"',
             'Content-Type': 'application/pose',
             'Glosses': gloss_sequence
