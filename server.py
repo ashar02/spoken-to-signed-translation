@@ -6,23 +6,22 @@ from dotenv import load_dotenv
 from io import BytesIO
 from flask_compress import Compress
 from gunicorn.app.base import BaseApplication
-import tempfile
-# import subprocess
 from pose_format.utils.holistic import load_holistic
 import cv2
-import shutil
+from datetime import datetime
+from typing import Optional
 
 load_dotenv()
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB
+max_content_length = int(os.getenv('MAX_CONTENT_LENGTH', 10)) * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = max_content_length
 Compress(app)
-
 
 def remove_unsupported_characters(text):
     return ''.join(char for char in text if ord(char) <= 255)
 
 @app.route('/spoken_text_to_signed_pose', methods=['GET'])
-def text_to_glosses():
+def text_to_posses():
     worker_pid = os.getpid()
     print(f"Worker PID: {worker_pid}")
     try:
@@ -62,12 +61,7 @@ def text_to_glosses():
     except (KeyError, ValueError) as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        if isinstance(e, str):
-            error_message = e
-        elif isinstance(e, dict) and 'message' in e:
-            error_message = e['message']
-        else:
-            error_message = str(e)
+        error_message = str(e)
         print(f"Unexpected error: {error_message}")
         if os.getenv('PM2_HOME'):
             return jsonify(error_message), 500
@@ -76,67 +70,58 @@ def text_to_glosses():
 
 @app.route('/video_to_pose', methods=['POST'])
 def video_to_pose():
-    if 'video' not in request.files:
-        return 'No video file found', 400
-
-    video_file = request.files['video']
-
-    if video_file.filename == '':
-        return 'Empty video filename', 400
-
-    if not allowed_file(video_file.filename):
-        return 'Invalid video file format, must be mp4 or webm', 400
-    
-    if request.content_length > app.config['MAX_CONTENT_LENGTH']:
-        return 'File size exceeds maximum limit', 413
-
-    # Create a temporary directory to store the uploaded video file
-    temp_dir = tempfile.mkdtemp()
-
-    # Save the uploaded video file to the temporary directory
-    temp_video_path = os.path.join(temp_dir, video_file.filename)
-    video_file.save(temp_video_path)
-
-    # Specify the output pose file path
-    output_pose_path = os.path.join(temp_dir, 'output.pose')
-
-    # Call pose_video function from pose_estimation.py module
-    pose_video(temp_video_path, output_pose_path, 'mediapipe')
-
-    # Read the generated pose file
-    with open(output_pose_path, 'rb') as f:
-        pose_data = f.read()
-
-    # Set response headers
-    headers = {
-        'Content-Disposition': f'inline; filename="output.pose"',
-        'Content-Type': 'application/pose'
-    }
-
-    # Create a Flask response with the pose data
-    response = Response(pose_data, headers=headers)
-
-    # Remove the uploaded video file
-    delete_file(temp_video_path)
-    delete_file(output_pose_path)
-    # Remove the temp directory of video file
-    delete_temp_dir(temp_dir)
-
-    return response
-
-# Function to delete a file
-def delete_file(file_path):
+    worker_pid = os.getpid()
+    print(f"Worker PID: {worker_pid}")
     try:
-        os.remove(file_path)
-    except Exception as e:
-        print(f"Error deleting file: {e}")
+        if request.content_length > app.config['MAX_CONTENT_LENGTH']:
+            return jsonify('File size exceeds maximum limit'), 413
+        if 'video' not in request.files:
+            return jsonify('No video file found'), 400
+        video_files = request.files.getlist('video')
+        if len(video_files) != 1:
+            return jsonify('Only one video file is allowed'), 400
+        video_file = video_files[0]
+        if video_file.filename == '':
+            return jsonify('Empty video filename'), 400
+        allowed_extensions = {'mp4', 'webm'}
+        if '.' not in video_file.filename or video_file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+            return jsonify('Invalid video file format, must be mp4 or webm'), 400
 
-# Function to delete a directory and its contents
-def delete_temp_dir(temp_dir):
-    try:
-        shutil.rmtree(temp_dir)
+        video_pose_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'video_pose')
+        if not os.path.exists(video_pose_directory):
+            os.makedirs(video_pose_directory)
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        filename, file_extension = os.path.splitext(video_file.filename)
+        unique_filename = f"{filename}_{timestamp}{file_extension}"
+        video_path = os.path.join(video_pose_directory, unique_filename)
+        video_file.save(video_path)
+        # Call pose_video function from pose_estimation.py module
+        pose_data = pose_video(video_path, None, 'mediapipe')
+        os.remove(video_path)
+        headers = {
+            #'Cache-Control': 'public, max-age=3600',
+            'Cache-Control': 'no-store',
+            'Content-Type': 'application/pose',
+        }
+        buffer = BytesIO()
+        pose_data.write(buffer)
+        binary_data = buffer.getvalue()
+        buffer.close()
+        response = Response(binary_data, mimetype='application/pose')
+        for key, value in headers.items():
+            cleaned_key = remove_unsupported_characters(key)
+            cleaned_value = remove_unsupported_characters(value)
+            response.headers[cleaned_key] = cleaned_value
+        return response
+    except (KeyError, ValueError) as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
-        print(f"Error deleting temporary directory: {e}")
+        error_message = str(e)
+        print(f"Unexpected error: {error_message}")
+        if os.getenv('PM2_HOME'):
+            return jsonify(error_message), 500
+        else:
+            return jsonify({'message': error_message}), 500
 
 def load_video_frames(cap: cv2.VideoCapture):
     while True:
@@ -147,14 +132,16 @@ def load_video_frames(cap: cv2.VideoCapture):
     cap.release()
 
 
-def pose_video(input_path: str, output_path: str, format: str):
+def pose_video(input_path: str, output_path: Optional[str], format: str):
     # Load video frames
     print('Loading video ...')
     cap = cv2.VideoCapture(input_path)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
-    frames = load_video_frames(cap)
+    #frames = load_video_frames(cap)
+    frames_generator = load_video_frames(cap)
+    frames = list(frames_generator)
 
     # Perform pose estimation
     print('Estimating pose ...')
@@ -169,18 +156,15 @@ def pose_video(input_path: str, output_path: str, format: str):
         raise NotImplementedError('Pose format not supported')
 
     # Write
-    print('Saving to disk ...')
-    with open(output_path, "wb") as f:
-        pose.write(f)
-
-
-# Function to check if the file extension is allowed
-def allowed_file(filename):
-    allowed_extensions = {'mp4', 'webm'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+    if output_path:
+        print('Saving to disk ...')
+        with open(output_path, "wb") as f:
+            pose.write(f)
+    else:
+        print('Returning pose data ...')
+        return pose
 
 if __name__ == '__main__':
-    # app.run(host='0.0.0.0', port=5000, debug=True)
     if os.getenv('PM2_HOME'):
         port_number = int(os.getenv('PORT', 3002))
         ssl_context = (os.getenv('CERTIFICATE_PATH'), os.getenv('PRIVATE_KEY_PATH'))
