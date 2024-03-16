@@ -11,6 +11,9 @@ from pose_format.utils.generic import reduce_holistic
 import cv2
 from datetime import datetime
 from typing import Optional
+from spoken_to_signed.gloss_to_pose.concatenate import concatenate_poses
+from typing import List
+from pose_format import Pose
 
 load_dotenv()
 app = Flask(__name__)
@@ -98,6 +101,9 @@ def video_to_pose():
         video_file.save(video_path)
         # Call pose_video function from pose_estimation.py module
         pose_data = pose_video(video_path, None, 'mediapipe')
+        poses: List[Pose] = []
+        poses.append(pose_data)
+        pose_data = concatenate_poses(poses)
         os.remove(video_path)
         headers = {
             #'Cache-Control': 'public, max-age=3600',
