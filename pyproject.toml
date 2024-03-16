@@ -23,6 +23,7 @@ dependencies = [
     # "gcsfs", # When files are stored on Google Cloud Storage
     # Module for running Flask Server
     "flask",
+    "flask_cors",
     "pymongo",
     # "fcntl",
     "python-dotenv",

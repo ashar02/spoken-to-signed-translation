@@ -7,6 +7,7 @@ from io import BytesIO
 from flask_compress import Compress
 from gunicorn.app.base import BaseApplication
 from pose_format.utils.holistic import load_holistic
+from pose_format.utils.generic import reduce_holistic
 import cv2
 from datetime import datetime
 from typing import Optional
@@ -152,6 +153,8 @@ def pose_video(input_path: str, output_path: Optional[str], format: str):
                              height=height,
                              progress=False,
                              additional_holistic_config={'model_complexity': 1})
+        pose = pose.get_components(["POSE_LANDMARKS", "FACE_LANDMARKS", "LEFT_HAND_LANDMARKS", "RIGHT_HAND_LANDMARKS"])
+        pose = reduce_holistic(pose)
     else:
         raise NotImplementedError('Pose format not supported')
 
