@@ -20,6 +20,7 @@ dependencies = [
     # "sign-language-datasets" # used for download_lexicon script
     # Module for running Flask Server
     "flask",
+    "flask_cors",
     "pymongo",
     # "fcntl",
     "python-dotenv",
