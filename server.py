@@ -108,6 +108,7 @@ def video_to_pose():
         headers = {
             #'Cache-Control': 'public, max-age=3600',
             'Cache-Control': 'no-store',
+            'Content-Disposition': f'inline; filename="{filename}.pose"',
             'Content-Type': 'application/pose',
         }
         buffer = BytesIO()
