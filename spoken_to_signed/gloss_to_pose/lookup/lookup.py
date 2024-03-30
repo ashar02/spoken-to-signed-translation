@@ -148,7 +148,7 @@ class PoseLookup:
 
     def insert_not_found_glosses_async(self, glosses: List[str], spoken_language: str, signed_language: str):
         def run():
-            lexicals_not_found = self.db['lexicals_not_found']
+            not_found_lexicals = self.db['not_found_lexicals']
             bulk_operations = [
                 InsertOne({
                     "spoken": spoken_language,
@@ -158,7 +158,7 @@ class PoseLookup:
                 }) for gloss in glosses
             ]
             try:
-                lexicals_not_found.bulk_write(bulk_operations, ordered=False)
+                not_found_lexicals.bulk_write(bulk_operations, ordered=False)
             except Exception as e:
                 print(f"Error inserting glosses: {e}")
 
