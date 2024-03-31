@@ -77,6 +77,14 @@ def video_to_pose():
     worker_pid = os.getpid()
     print(f"Worker PID: {worker_pid}")
     try:
+        word = request.form.get('word', '').lower()
+        language = request.form.get('spoken')
+        signed = request.form.get('signed')
+        if word and language and signed:
+            print('request: ' + word)
+            glosses = text_to_gloss(word, language)
+            gloss_sequence = ' '.join([f"{word}/{gloss}" for word, gloss in glosses])
+
         if request.content_length > app.config['MAX_CONTENT_LENGTH']:
             return jsonify('File size exceeds maximum limit'), 413
         if 'video' not in request.files:
@@ -111,6 +119,8 @@ def video_to_pose():
             'Content-Disposition': f'inline; filename="{filename}.pose"',
             'Content-Type': 'application/pose',
         }
+        if gloss_sequence:
+            headers['Glosses'] = gloss_sequence
         buffer = BytesIO()
         pose_data.write(buffer)
         binary_data = buffer.getvalue()
