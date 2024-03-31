@@ -80,6 +80,7 @@ def video_to_pose():
         word = request.form.get('word', '').lower()
         language = request.form.get('spoken')
         signed = request.form.get('signed')
+        gloss_sequence = None
         if word and language and signed:
             print('request: ' + word)
             glosses = text_to_gloss(word, language)
