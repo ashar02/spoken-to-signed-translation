@@ -14,6 +14,9 @@ from typing import Optional
 from spoken_to_signed.gloss_to_pose.concatenate import concatenate_poses
 from typing import List
 from pose_format import Pose
+from spoken_to_signed.pose_to_video.conditional.pix2pix import pose_to_video_pix2pix
+from tqdm import tqdm
+import tempfile
 
 load_dotenv()
 app = Flask(__name__)
@@ -32,31 +35,59 @@ def text_to_posses():
         text = request.args.get('text').lower()
         language = request.args.get('spoken')
         signed = request.args.get('signed')
+        mode = request.args.get('mode')
         if not text or not language or not signed:
             return jsonify({'error': 'Missing required fields: text or spoken or signed'}), 400
         print('request: ' + text)
 
         glosses = text_to_gloss(text, language)
         poses = gloss_to_pose(glosses, None, language, signed)
+        extension = '.pose'
+        content_type = 'application/pose'
+        if mode and mode == "2":
+            extension = '.mp4'
+            content_type = 'video/mp4'
         #with open('final.pose', "wb") as f:
         #    poses.write(f)
 
         gloss_sequence = ' '.join([f"{word}/{gloss}" for word, gloss in glosses])
         supported_words = '-'.join([word for word, _ in glosses])
-        filename = supported_words + '.pose'
+        filename = supported_words + extension
         headers = {
             #'Cache-Control': 'public, max-age=3600',
             'Cache-Control': 'no-store',
             'Content-Disposition': f'inline; filename="{filename}"',
-            'Content-Type': 'application/pose',
+            'Content-Type': content_type,
             'Glosses': gloss_sequence
         }
         #response = jsonify({'glosses': glosses})
-        buffer = BytesIO()
-        poses.write(buffer)
-        binary_data = buffer.getvalue()
-        buffer.close()
-        response = Response(binary_data, mimetype='application/pose')
+        binary_data = None
+        if mode and mode == "2":
+            print('Generating video ...')
+            video = None
+            frames: iter = pose_to_video_pix2pix(poses)
+            temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
+            for frame in tqdm(frames):
+                if video is None:
+                    height, width, _ = frame.shape
+                    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+                    video = cv2.VideoWriter(temp_file.name,
+                                            apiPreference=cv2.CAP_FFMPEG,
+                                            fourcc=fourcc,
+                                            fps=poses.body.fps,
+                                            frameSize=(height, width))
+                bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                video.write(bgr_frame)
+            video.release()
+            with open(temp_file.name, 'rb') as f:
+                binary_data = f.read()
+            os.remove(temp_file.name)
+        else:
+            buffer = BytesIO()
+            poses.write(buffer)
+            binary_data = buffer.getvalue()
+            buffer.close()
+        response = Response(binary_data, mimetype=content_type)
         for key, value in headers.items():
             cleaned_key = remove_unsupported_characters(key)
             cleaned_value = remove_unsupported_characters(value)
