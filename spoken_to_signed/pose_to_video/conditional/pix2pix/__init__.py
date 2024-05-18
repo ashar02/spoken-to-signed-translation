@@ -5,7 +5,7 @@ from pose_format import Pose
 from pose_format.pose_visualizer import PoseVisualizer
 from tensorflow.keras.models import load_model
 
-from pose_to_video.utils import set_tensorflow_memory_growth
+from spoken_to_signed.pose_to_video.utils import set_tensorflow_memory_growth
 
 video_model_g = load_model("./spoken_to_signed/pose_to_video/conditional/pix2pix/pix_to_pix.h5")
 
