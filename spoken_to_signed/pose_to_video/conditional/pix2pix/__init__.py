@@ -7,7 +7,7 @@ from tensorflow.keras.models import load_model
 
 from spoken_to_signed.pose_to_video.utils import set_tensorflow_memory_growth
 
-video_model_g = load_model("./spoken_to_signed/pose_to_video/conditional/pix2pix/pix_to_pix.h5")
+video_model_g = None
 
 def translate_image(model, image):
     # Assume 'image' is a NumPy array
@@ -55,6 +55,8 @@ def pose_to_video_pix2pix(pose: Pose) -> iter:
     set_tensorflow_memory_growth()
 
     global video_model_g
+    if video_model_g == None:
+        video_model_g = load_model("./spoken_to_signed/pose_to_video/conditional/pix2pix/pix_to_pix.h5")
 
     # Scale pose to 256x256
     scale_w = pose.header.dimensions.width / 256
