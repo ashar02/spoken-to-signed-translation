@@ -3,3 +3,4 @@ build/
 spoken_to_signed.egg-info/
 final.pose
 video_pose
+temp

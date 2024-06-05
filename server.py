@@ -17,8 +17,18 @@ from pose_format import Pose
 from spoken_to_signed.pose_to_video.conditional.pix2pix import pose_to_video_pix2pix
 from tqdm import tqdm
 import tempfile
+import uuid
+import mimetypes
+from digihuman.pose_estimator import Complete_pose_Video
+import ssl
+import time
 
+
+full_pose_video_data = {}
+full_pose_video_data_statues = {}
 load_dotenv()
+mimetypes.init()
+TEMP_FILE_FOLDER = "temp/"
 app = Flask(__name__)
 max_content_length = int(os.getenv('MAX_CONTENT_LENGTH', 10)) * 1024 * 1024
 app.config['MAX_CONTENT_LENGTH'] = max_content_length
@@ -173,6 +183,68 @@ def video_to_pose():
         else:
             return jsonify({'message': error_message}), 500
 
+@app.route('/holisticUploader', methods=['POST'])
+def upload_holistic_video():
+    if 'file' not in request.files:
+        return "No file!"
+    f = request.files['file']
+    postfix = f.filename.split(".")[-1]
+    file_name = TEMP_FILE_FOLDER + str(uuid.uuid4()) + "." + postfix
+    f.save(file_name)
+    # checking file type
+    mimestart = mimetypes.guess_type(file_name)[0]
+    if mimestart != None:
+        mimestart = mimestart.split('/')[0]
+        if mimestart in ['video']:
+            full_pose_video_data[file_name] = []
+            full_pose_video_data_statues[file_name] = False
+            print("request type video")
+            calculate_video_full_pose_estimation(file_name)
+            cap = cv2.VideoCapture(file_name)
+            tframe = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+            width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            aspectRatio = width / height
+            cap.release()
+            res = {
+                'file' : file_name,
+                'totalFrames': int(tframe),
+                'aspectRatio': aspectRatio
+            }
+            return jsonify(res)
+        else:
+            print("Wrong input!")
+            return "Not video!"
+    else:
+        return "No mime found!"
+
+@app.route("/holistc", methods=["POST"])
+def get_frame_full_pose():
+    if not request.is_json:
+        return "No json body!"
+    request_json = request.get_json()
+    if 'index' not in request_json:
+        return "No index!"
+    if 'fileName' not in request_json:
+        return "No fileName!"
+    index = request_json['index']
+    file_name = str(request_json['fileName'])
+    req = request.data
+    try:
+        if full_pose_video_data.keys().__contains__(file_name) is False:
+            print("Wrong!")
+            return Response("Wrong fileName!")
+        while True:
+            if len(full_pose_video_data[file_name]) >= index + 1:
+                # print(hand_pose_video_data[file_name][index])
+                return jsonify(full_pose_video_data[file_name][index])
+            elif full_pose_video_data_statues[file_name] is False:
+                time.sleep(0.15)
+            else:
+                return Response("Done")
+    except:
+        return Response("Good luck!")
+
 def load_video_frames(cap: cv2.VideoCapture):
     while True:
         ret, frame = cap.read()
@@ -216,7 +288,18 @@ def pose_video(input_path: str, output_path: Optional[str], format: str):
         print('Returning pose data ...')
         return pose
 
+def calculate_video_full_pose_estimation(file_name):
+    for i in Complete_pose_Video(file_name):
+        full_pose_video_data[file_name].append(i)
+    full_pose_video_data_statues[file_name] = True #means process is finished
+    # return pose_estimator.Pose_Video(file_name)
+
 if __name__ == '__main__':
+    isExist = os.path.exists(TEMP_FILE_FOLDER)
+    if not isExist:
+        os.makedirs(TEMP_FILE_FOLDER)
+    ssl._create_default_https_context = ssl._create_unverified_context
+
     if os.getenv('PM2_HOME'):
         port_number = int(os.getenv('PORT', 3002))
         ssl_context = (os.getenv('CERTIFICATE_PATH'), os.getenv('PRIVATE_KEY_PATH'))
