@@ -11,7 +11,7 @@ from pose_format.utils.generic import reduce_holistic
 import cv2
 from datetime import datetime
 from typing import Optional
-from spoken_to_signed.gloss_to_pose.concatenate import concatenate_poses
+from spoken_to_signed.gloss_to_pose.concatenate import concatenate_poses, scale_pose
 from typing import List
 from pose_format import Pose
 from spoken_to_signed.pose_to_video.conditional.pix2pix import pose_to_video_pix2pix
@@ -154,6 +154,7 @@ def video_to_pose():
         poses: List[Pose] = []
         poses.append(pose_data)
         pose_data = concatenate_poses(poses)
+        pose_data = scale_pose(pose_data)
         os.remove(video_path)
         headers = {
             #'Cache-Control': 'public, max-age=3600',

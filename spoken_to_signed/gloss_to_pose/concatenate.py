@@ -48,7 +48,9 @@ def concatenate_poses(poses: List[Pose]) -> Pose:
     print('Correcting wrists...')
     pose = correct_wrists(pose)
 
-    # Scale the newly created pose
+    return pose
+
+def scale_pose(pose) -> Pose:
     print('Scaling pose...')
     new_width = 500
     shift = 1.25
