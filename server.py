@@ -11,7 +11,7 @@ from pose_format.utils.generic import reduce_holistic
 import cv2
 from datetime import datetime
 from typing import Optional
-from spoken_to_signed.gloss_to_pose.concatenate import concatenate_poses, scale_pose
+from spoken_to_signed.gloss_to_pose.concatenate import concatenate_poses
 from typing import List
 from pose_format import Pose
 from spoken_to_signed.pose_to_video.conditional.pix2pix import pose_to_video_pix2pix
@@ -154,10 +154,10 @@ def video_to_pose():
         video_file.save(video_path)
         # Call pose_video function from pose_estimation.py module
         pose_data = pose_video(video_path, None, 'mediapipe')
-        poses: List[Pose] = []
-        poses.append(pose_data)
-        pose_data = concatenate_poses(poses)
-        pose_data = scale_pose(pose_data)
+        #poses: List[Pose] = []
+        #poses.append(pose_data)
+        #pose_data = concatenate_poses(poses)
+        #pose_data = scale_pose(pose_data)
         os.remove(video_path)
         headers = {
             #'Cache-Control': 'public, max-age=3600',
@@ -215,11 +215,14 @@ def upload_holistic_video():
                 'totalFrames': int(tframe),
                 'aspectRatio': aspectRatio
             }
+            os.remove(file_name)
             return jsonify(res)
         else:
             print("Wrong input!")
+            os.remove(file_name)
             return "Not video!"
     else:
+        os.remove(file_name)
         return "No mime found!"
 
 @app.route('/faceUploader', methods=['POST'])
@@ -250,11 +253,14 @@ def upload_face_video():
                 'totalFrames': int(tframe),
                 'aspectRatio': aspectRatio
             }
+            os.remove(file_name)
             return jsonify(res)
         else:
             print("Wrong input!")
+            os.remove(file_name)
             return "Not video!"
     else:
+        os.remove(file_name)
         return "No mime found!"
 
 @app.route("/holistc", methods=["POST"])
@@ -330,6 +336,21 @@ def pose_video(input_path: str, output_path: Optional[str], format: str):
     #frames = load_video_frames(cap)
     frames_generator = load_video_frames(cap)
     frames = list(frames_generator)
+    cap.release()
+
+    # Crop to square
+    print('Cropping video to square ...')
+    if width != height:
+        crop_size = min(width, height)
+        top = (height - crop_size) // 2
+        left = (width - crop_size) // 2
+        frames = [frame[top:top + crop_size, left:left + crop_size] for frame in frames]
+        width = height = crop_size
+
+    # Resize to 1250x1250
+    target_size = 1250
+    frames = [cv2.resize(frame, (target_size, target_size), interpolation=cv2.INTER_LANCZOS4) for frame in frames]
+    width = height = target_size
 
     # Perform pose estimation
     print('Estimating pose ...')

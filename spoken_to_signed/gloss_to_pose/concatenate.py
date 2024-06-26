@@ -48,14 +48,11 @@ def concatenate_poses(poses: List[Pose]) -> Pose:
     print('Correcting wrists...')
     pose = correct_wrists(pose)
 
+    pose = unnormalize_pose(pose)
+
     return pose
 
-def scale_pose(pose) -> Pose:
-    print('Scaling pose...')
-    new_width = 500
-    shift = 1.25
-    shift_vec = np.full(shape=(pose.body.data.shape[-1]), fill_value=shift, dtype=np.float32)
-    pose.body.data = (pose.body.data + shift_vec) * new_width
-    pose.header.dimensions.height = pose.header.dimensions.width = int(new_width * shift * 2)
+def unnormalize_pose(pose) -> Pose:
+    pose.body.data = pose.body.data * pose.header.dimensions.width
 
     return pose
