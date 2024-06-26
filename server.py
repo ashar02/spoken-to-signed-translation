@@ -154,10 +154,9 @@ def video_to_pose():
         video_file.save(video_path)
         # Call pose_video function from pose_estimation.py module
         pose_data = pose_video(video_path, None, 'mediapipe')
-        #poses: List[Pose] = []
-        #poses.append(pose_data)
-        #pose_data = concatenate_poses(poses)
-        #pose_data = scale_pose(pose_data)
+        poses: List[Pose] = []
+        poses.append(pose_data)
+        pose_data = concatenate_poses(poses)
         os.remove(video_path)
         headers = {
             #'Cache-Control': 'public, max-age=3600',

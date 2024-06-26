@@ -53,6 +53,10 @@ def concatenate_poses(poses: List[Pose]) -> Pose:
     return pose
 
 def unnormalize_pose(pose) -> Pose:
-    pose.body.data = pose.body.data * pose.header.dimensions.width
+    new_width = 500
+    shift = 1.25
+    shift_vec = np.full(shape=(pose.body.data.shape[-1]), fill_value=shift, dtype=np.float32)
+    pose.body.data = (pose.body.data + shift_vec) * new_width
+    #pose.body.data = pose.body.data * pose.header.dimensions.width
 
     return pose
