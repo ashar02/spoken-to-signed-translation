@@ -83,17 +83,19 @@ def text_to_posses():
             for frame in tqdm(frames):
                 if video is None:
                     height, width, _ = frame.shape
-                    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+                    fourcc = cv2.VideoWriter_fourcc(*'avc1')
                     video = cv2.VideoWriter(temp_file.name,
                                             apiPreference=cv2.CAP_FFMPEG,
                                             fourcc=fourcc,
                                             fps=poses.body.fps,
-                                            frameSize=(height, width))
+                                            frameSize=(width, height))
                 bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 video.write(bgr_frame)
             video.release()
             with open(temp_file.name, 'rb') as f:
                 binary_data = f.read()
+            #with open('./test.mp4', 'rb') as f:
+            #    binary_data = f.read()
             os.remove(temp_file.name)
         else:
             buffer = BytesIO()
