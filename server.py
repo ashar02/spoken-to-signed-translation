@@ -417,7 +417,7 @@ def pose_video(input_path: str, output_path: Optional[str], format: str):
                              width=width,
                              height=height,
                              progress=False,
-                             additional_holistic_config={'model_complexity': 1}) #576 landmarks
+                             additional_holistic_config={'model_complexity': 2}) #576 landmarks
         pose = pose.get_components(["POSE_LANDMARKS", "FACE_LANDMARKS", "LEFT_HAND_LANDMARKS", "RIGHT_HAND_LANDMARKS"]) #543 landmarks
         pose = reduce_holistic(pose) #178 landmarks
     else:
