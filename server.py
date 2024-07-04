@@ -4,8 +4,8 @@ from spoken_to_signed.text_to_gloss.spacylemma import text_to_gloss
 from spoken_to_signed.gloss_to_pose import gloss_to_pose, CSVPoseLookup
 from dotenv import load_dotenv
 from io import BytesIO
-from flask_compress import Compress
-from gunicorn.app.base import BaseApplication
+# from flask_compress import Compress
+# from gunicorn.app.base import BaseApplication
 from pose_format.utils.holistic import load_holistic
 from pose_format.utils.generic import reduce_holistic
 import cv2
@@ -26,7 +26,6 @@ import time
 from pose_estimator import add_extra_points
 import numpy as np
 from pymongo import MongoClient
-
 
 full_pose_video_data = {}
 full_pose_video_data_statues = {}
@@ -326,8 +325,8 @@ def get_frame_full_pose():
                 if len(full_pose_video_data[file_name]) >= index + 1:
                     # print(hand_pose_video_data[file_name][index])
                     data = convert_numpy_to_native(full_pose_video_data[file_name][index])
-                # return jsonify(full_pose_video_data[file_name][index])
-                return jsonify(data)
+                    # return jsonify(full_pose_video_data[file_name][index])
+                    return jsonify(data)
                 elif full_pose_video_data_statues[file_name] is False:
                     time.sleep(0.1)
                 else:
