@@ -25,6 +25,8 @@ import ssl
 import time
 from pose_estimator import add_extra_points
 import numpy as np
+from pymongo import MongoClient
+
 
 full_pose_video_data = {}
 full_pose_video_data_statues = {}
@@ -37,6 +39,10 @@ app = Flask(__name__)
 max_content_length = int(os.getenv('MAX_CONTENT_LENGTH', 10)) * 1024 * 1024
 app.config['MAX_CONTENT_LENGTH'] = max_content_length
 Compress(app)
+
+connection_string = os.getenv('DB_URI')
+client = MongoClient(connection_string)
+db = client['translate']
 
 def remove_unsupported_characters(text):
     return ''.join(char for char in text if ord(char) <= 255)
@@ -202,9 +208,17 @@ def upload_holistic_video():
     if mimestart != None:
         mimestart = mimestart.split('/')[0]
         if mimestart in ['video']:
-            full_pose_video_data[file_name] = []
-            full_pose_video_data_statues[file_name] = False
-            print("request type video")
+            if os.getenv('PM2_HOME'):
+                db.full_pose_video_data.insert_one({
+                    'file_name': file_name,
+                    'status': 'processing',
+                    'created_at': datetime.utcnow(),
+                    'poses': []
+                })
+            else:
+                full_pose_video_data[file_name] = []
+                full_pose_video_data_statues[file_name] = False
+                print("request type video")
             # calculate_video_full_pose_estimation(file_name)
             use_pose_file(file_name)
             cap = cv2.VideoCapture(file_name)
@@ -241,9 +255,17 @@ def upload_face_video():
     if mimestart != None:
         mimestart = mimestart.split('/')[0]
         if mimestart in ['video']:
-            face_pose_video_data[file_name] = []
-            face_pose_video_data_statues[file_name] = False
-            print("request type video")
+            if os.getenv('PM2_HOME'):
+                db.face_pose_video_data.insert_one({
+                    'file_name': file_name,
+                    'status': 'processing',
+                    'created_at': datetime.utcnow(),
+                    'poses': []
+                })
+            else:
+                face_pose_video_data[file_name] = []
+                face_pose_video_data_statues[file_name] = False
+                print("request type video")
             calculate_video_mocap_estimation(file_name)
             cap = cv2.VideoCapture(file_name)
             tframe = cap.get(cv2.CAP_PROP_FRAME_COUNT)
@@ -278,22 +300,40 @@ def get_frame_full_pose():
     index = request_json['index']
     file_name = str(request_json['fileName'])
     req = request.data
-    try:
-        if full_pose_video_data.keys().__contains__(file_name) is False:
-            print("Wrong!")
-            return Response("Wrong fileName!")
-        while True:
-            if len(full_pose_video_data[file_name]) >= index + 1:
-                # print(hand_pose_video_data[file_name][index])
-                data = convert_numpy_to_native(full_pose_video_data[file_name][index])
+    if os.getenv('PM2_HOME'):
+        try:
+            while True:
+                video_data = db.full_pose_video_data.find_one({'file_name': file_name})
+                if not video_data:
+                    print("Wrong!")
+                    return Response("Wrong fileName!")
+                poses = video_data['poses']
+                if len(poses) >= index + 1:
+                    return jsonify(poses[index])
+                elif video_data['status'] == 'processing':
+                    time.sleep(0.1)
+                else:
+                    return Response("Done")
+        except Exception as e:
+            print(f"Error: {e}")
+            return Response("Good luck!")
+    else:
+        try:
+            if full_pose_video_data.keys().__contains__(file_name) is False:
+                print("Wrong!")
+                return Response("Wrong fileName!")
+            while True:
+                if len(full_pose_video_data[file_name]) >= index + 1:
+                    # print(hand_pose_video_data[file_name][index])
+                    data = convert_numpy_to_native(full_pose_video_data[file_name][index])
                 # return jsonify(full_pose_video_data[file_name][index])
                 return jsonify(data)
-            elif full_pose_video_data_statues[file_name] is False:
-                time.sleep(0.1)
-            else:
-                return Response("Done")
-    except:
-        return Response("Good luck!")
+                elif full_pose_video_data_statues[file_name] is False:
+                    time.sleep(0.1)
+                else:
+                    return Response("Done")
+        except:
+            return Response("Good luck!")
 
 @app.route("/face", methods=["POST"])
 def get_frame_facial_expression():
@@ -307,20 +347,37 @@ def get_frame_facial_expression():
     index = request_json['index']
     file_name = str(request_json['fileName'])
     req = request.data
-    try:
-        if face_pose_video_data.keys().__contains__(file_name) is False:
-            print("Wrong!")
-            return Response("Wrong fileName!")
-        while True:
-            if len(face_pose_video_data[file_name]) >= index + 1:
-                return jsonify(face_pose_video_data[file_name][index])
-            elif face_pose_video_data_statues[file_name] is False:
-                time.sleep(0.1)
-            else:
-                return Response("Done")
-    except:
-        return Response("Good luck!")
-
+    if os.getenv('PM2_HOME'):
+        try:
+            while True:
+                video_data = db.face_pose_video_data.find_one({'file_name': file_name})
+                if not video_data:
+                    print("Wrong!")
+                    return Response("Wrong fileName!")
+                poses = video_data['poses']
+                if len(poses) >= index + 1:
+                    return jsonify(poses[index])
+                elif video_data['status'] == 'processing':
+                    time.sleep(0.1)
+                else:
+                    return Response("Done")
+        except Exception as e:
+            print(f"Error: {e}")
+            return Response("Good luck!")
+    else:
+        try:
+            if face_pose_video_data.keys().__contains__(file_name) is False:
+                print("Wrong!")
+                return Response("Wrong fileName!")
+            while True:
+                if len(face_pose_video_data[file_name]) >= index + 1:
+                    return jsonify(face_pose_video_data[file_name][index])
+                elif face_pose_video_data_statues[file_name] is False:
+                    time.sleep(0.1)
+                else:
+                    return Response("Done")
+        except:
+            return Response("Good luck!")
 
 def load_video_frames(cap: cv2.VideoCapture):
     while True:
@@ -365,7 +422,7 @@ def pose_video(input_path: str, output_path: Optional[str], format: str):
                              width=width,
                              height=height,
                              progress=False,
-                             additional_holistic_config={'model_complexity': 1}) #576 landmarks
+                             additional_holistic_config={'model_complexity': 2}) #576 landmarks
         pose = pose.get_components(["POSE_LANDMARKS", "FACE_LANDMARKS", "LEFT_HAND_LANDMARKS", "RIGHT_HAND_LANDMARKS"]) #543 landmarks
         pose = reduce_holistic(pose) #178 landmarks
     else:
@@ -381,14 +438,40 @@ def pose_video(input_path: str, output_path: Optional[str], format: str):
         return pose
 
 def calculate_video_full_pose_estimation(file_name):
-    for i in Complete_pose_Video(file_name):
-        full_pose_video_data[file_name].append(i)
-    full_pose_video_data_statues[file_name] = True
+    if os.getenv('PM2_HOME'):
+        video_data = db.full_pose_video_data.find_one({'file_name': file_name})
+        if video_data:
+            poses = video_data['poses']
+            for index in Complete_pose_Video(file_name):
+                poses.append(index)
+            db.full_pose_video_data.update_one(
+                {'file_name': file_name},
+                {'$set': {'poses': poses, 'status': 'complete'}}
+            )
+        else:
+            print(f"No document found for file_name: {file_name}")
+    else:
+        for i in Complete_pose_Video(file_name):
+            full_pose_video_data[file_name].append(i)
+        full_pose_video_data_statues[file_name] = True
 
 def calculate_video_mocap_estimation(file_name):
-    for i in Calculate_Face_Mocap(file_name):
-        face_pose_video_data[file_name].append(i)
-    face_pose_video_data_statues[file_name] = True
+    if os.getenv('PM2_HOME'):
+        video_data = db.face_pose_video_data.find_one({'file_name': file_name})
+        if video_data:
+            poses = video_data['poses']
+            for i in Calculate_Face_Mocap(file_name):
+                poses.append(i)
+            db.face_pose_video_data.update_one(
+                {'file_name': file_name},
+                {'$set': {'poses': poses, 'status': 'complete'}}
+            )
+        else:
+            print(f"No document found for file_name: {file_name}")
+    else:
+        for i in Calculate_Face_Mocap(file_name):
+            face_pose_video_data[file_name].append(i)
+        face_pose_video_data_statues[file_name] = True
 
 def use_pose_file(file_name):
     print()
