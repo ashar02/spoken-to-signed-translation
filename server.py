@@ -4,8 +4,8 @@ from spoken_to_signed.text_to_gloss.spacylemma import text_to_gloss
 from spoken_to_signed.gloss_to_pose import gloss_to_pose, CSVPoseLookup
 from dotenv import load_dotenv
 from io import BytesIO
-# from flask_compress import Compress
-# from gunicorn.app.base import BaseApplication
+from flask_compress import Compress
+from gunicorn.app.base import BaseApplication
 from pose_format.utils.holistic import load_holistic
 from pose_format.utils.generic import reduce_holistic
 import cv2
@@ -21,11 +21,11 @@ import uuid
 import mimetypes
 from digihuman.pose_estimator import Complete_pose_Video
 from digihuman.mediaPipeFace import Calculate_Face_Mocap
+from digihuman.pose_transformer import Complete_pose_Buffer
 import ssl
 import time
-from pose_estimator import add_extra_points
-import numpy as np
 from pymongo import MongoClient
+
 
 full_pose_video_data = {}
 full_pose_video_data_statues = {}
@@ -42,6 +42,9 @@ Compress(app)
 connection_string = os.getenv('DB_URI')
 client = MongoClient(connection_string)
 db = client['translate']
+
+def is_in_pm2_environment():
+    return os.getenv('PM2_HOME')
 
 def remove_unsupported_characters(text):
     return ''.join(char for char in text if ord(char) <= 255)
@@ -119,7 +122,7 @@ def text_to_posses():
     except Exception as e:
         error_message = str(e)
         print(f"Unexpected error: {error_message}")
-        if os.getenv('PM2_HOME'):
+        if is_in_pm2_environment():
             return jsonify(error_message), 500
         else:
             return jsonify({'message': error_message}), 500
@@ -189,7 +192,7 @@ def video_to_pose():
     except Exception as e:
         error_message = str(e)
         print(f"Unexpected error: {error_message}")
-        if os.getenv('PM2_HOME'):
+        if is_in_pm2_environment():
             return jsonify(error_message), 500
         else:
             return jsonify({'message': error_message}), 500
@@ -207,7 +210,7 @@ def upload_holistic_video():
     if mimestart != None:
         mimestart = mimestart.split('/')[0]
         if mimestart in ['video']:
-            if os.getenv('PM2_HOME'):
+            if is_in_pm2_environment():
                 db.full_pose_video_data.insert_one({
                     'file_name': file_name,
                     'status': 'processing',
@@ -218,8 +221,10 @@ def upload_holistic_video():
                 full_pose_video_data[file_name] = []
                 full_pose_video_data_statues[file_name] = False
                 print("request type video")
-            # calculate_video_full_pose_estimation(file_name)
-            use_pose_file(file_name)
+            #glosses = text_to_gloss('hello', 'en')
+            #poses = gloss_to_pose(glosses, None, 'en', 'ase')
+            #calculate_video_full_pose_estimation(file_name, poses)
+            calculate_video_full_pose_estimation(file_name)
             cap = cv2.VideoCapture(file_name)
             tframe = cap.get(cv2.CAP_PROP_FRAME_COUNT)
             width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -254,7 +259,7 @@ def upload_face_video():
     if mimestart != None:
         mimestart = mimestart.split('/')[0]
         if mimestart in ['video']:
-            if os.getenv('PM2_HOME'):
+            if is_in_pm2_environment():
                 db.face_pose_video_data.insert_one({
                     'file_name': file_name,
                     'status': 'processing',
@@ -299,7 +304,7 @@ def get_frame_full_pose():
     index = request_json['index']
     file_name = str(request_json['fileName'])
     req = request.data
-    if os.getenv('PM2_HOME'):
+    if is_in_pm2_environment():
         try:
             while True:
                 video_data = db.full_pose_video_data.find_one({'file_name': file_name})
@@ -323,10 +328,7 @@ def get_frame_full_pose():
                 return Response("Wrong fileName!")
             while True:
                 if len(full_pose_video_data[file_name]) >= index + 1:
-                    # print(hand_pose_video_data[file_name][index])
-                    data = convert_numpy_to_native(full_pose_video_data[file_name][index])
-                    # return jsonify(full_pose_video_data[file_name][index])
-                    return jsonify(data)
+                    return jsonify(full_pose_video_data[file_name][index])
                 elif full_pose_video_data_statues[file_name] is False:
                     time.sleep(0.1)
                 else:
@@ -346,7 +348,7 @@ def get_frame_facial_expression():
     index = request_json['index']
     file_name = str(request_json['fileName'])
     req = request.data
-    if os.getenv('PM2_HOME'):
+    if is_in_pm2_environment():
         try:
             while True:
                 video_data = db.face_pose_video_data.find_one({'file_name': file_name})
@@ -436,13 +438,17 @@ def pose_video(input_path: str, output_path: Optional[str], format: str):
         print('Returning pose data ...')
         return pose
 
-def calculate_video_full_pose_estimation(file_name):
-    if os.getenv('PM2_HOME'):
+def calculate_video_full_pose_estimation(file_name, pose=None):
+    if is_in_pm2_environment():
         video_data = db.full_pose_video_data.find_one({'file_name': file_name})
         if video_data:
             poses = video_data['poses']
-            for index in Complete_pose_Video(file_name):
-                poses.append(index)
+            if pose is not None:
+                for index in Complete_pose_Buffer(pose):
+                    poses.append(index)
+            else:
+                for index in Complete_pose_Video(file_name):
+                    poses.append(index)
             db.full_pose_video_data.update_one(
                 {'file_name': file_name},
                 {'$set': {'poses': poses, 'status': 'complete'}}
@@ -450,12 +456,16 @@ def calculate_video_full_pose_estimation(file_name):
         else:
             print(f"No document found for file_name: {file_name}")
     else:
-        for i in Complete_pose_Video(file_name):
-            full_pose_video_data[file_name].append(i)
+        if pose is not None:
+            for index in Complete_pose_Buffer(pose):
+                full_pose_video_data[file_name].append(index)
+        else:
+            for index in Complete_pose_Video(file_name):
+                full_pose_video_data[file_name].append(index)
         full_pose_video_data_statues[file_name] = True
 
 def calculate_video_mocap_estimation(file_name):
-    if os.getenv('PM2_HOME'):
+    if is_in_pm2_environment():
         video_data = db.face_pose_video_data.find_one({'file_name': file_name})
         if video_data:
             poses = video_data['poses']
@@ -472,114 +482,6 @@ def calculate_video_mocap_estimation(file_name):
             face_pose_video_data[file_name].append(i)
         face_pose_video_data_statues[file_name] = True
 
-def use_pose_file(file_name):
-    print()
-    global full_pose_video_data
-    global full_pose_video_data_statues
-    pose_file_data = get_pose_file_content()
-    for i in pose_file_data:
-        full_pose_video_data[file_name].append(i)
-    full_pose_video_data_statues[file_name] = True #means process is finished
-
-def get_pose_file_content():
-    file_path = './dollar-576.pose'
-    with open(file_path, 'rb') as pose_file:
-        pose = Pose.read(pose_file.read())
-        frame_count = pose.body.data.shape[0]
-        # body_data = pose.body.data[frame_number]  # Get data for the specific frame
-        rows, cols = pose.header.dimensions.height, pose.header.dimensions.width
-
-        pose_landmarks_data = pose.get_components(["POSE_LANDMARKS"]).body
-        lh_landmarks_data = pose.get_components(["LEFT_HAND_LANDMARKS"]).body
-        rh_landmarks_data = pose.get_components(["RIGHT_HAND_LANDMARKS"]).body
-
-        frameArr = [] #final response
-        bodyPoseArr = []
-        lhPoseArr = []
-        rhPoseArr = []
-            
-        # Loop to populate bodyPoseArr
-        for frame_index, (body_frame_data, body_conf) in enumerate(zip(pose_landmarks_data.data, pose_landmarks_data.confidence)):
-            body_predictions = []
-            for landmark_index, (body_landmark, body_conf_value) in enumerate(zip(body_frame_data[0], body_conf[0])):
-                body_pose_pred = {
-                    'x': (body_landmark[0] / rows),
-                    'y': (body_landmark[1] / cols),
-                    'z': ((body_landmark[2] / 500) - 1.25),
-                    'visibility': body_conf_value
-                }
-                if isinstance(body_landmark[0], np.float32):
-                    body_predictions.append(body_pose_pred)
-            add_extra_points(body_predictions)
-            body_pose_obj = {
-                "predictions": body_predictions,
-                "frame": frame_index+1,
-                "height": rows,
-                "width": cols
-            }
-            bodyPoseArr.append(body_pose_obj)
-
-        # Loop to populate lhPoseArr
-        for frame_index, (lh_frame_data, lh_conf) in enumerate(zip(lh_landmarks_data.data, lh_landmarks_data.confidence)):
-            lh_predictions = []
-            for landmark_index, (lh_landmark, lh_conf_value) in enumerate(zip(lh_frame_data[0], lh_conf[0])):
-                lh_pose_pred = {
-                    'x': (lh_landmark[0] / rows),
-                    'y': (lh_landmark[1] / cols),
-                    'z':((lh_landmark[2] / 500) - 1.25),
-                    'visibility': (lh_conf_value)
-                }
-                if isinstance(lh_landmark[0], np.float32):
-                    lh_predictions.append(lh_pose_pred)
-            lhPoseArr.append(lh_predictions)
-
-        # Loop to populate rhPoseArr
-        for frame_index, (rh_frame_data, rh_conf) in enumerate(zip(rh_landmarks_data.data, rh_landmarks_data.confidence)):
-            rh_predictions = []
-            for landmark_index, (rh_landmark, rh_conf_value) in enumerate(zip(rh_frame_data[0], rh_conf[0])):
-                rh_pose_pred = {
-                    'x': (rh_landmark[0] / rows),
-                    'y': (rh_landmark[1] / cols),
-                    'z': ((rh_landmark[2] / 500) - 1.25),
-                    'visibility': rh_conf_value
-                }
-                if isinstance(rh_landmark[0], np.float32):
-                    rh_predictions.append(rh_pose_pred)
-            rhPoseArr.append(rh_predictions)
-
-        for i in range(0, frame_count):
-            frame_object = {
-                "bodyPose": {
-                    "predictions": bodyPoseArr[i]['predictions'],
-                    "frame": i+1,
-                    "height": rows,
-                    "width": cols
-                },
-                "handsPose": {
-                    "handsR": rhPoseArr[i],
-                    "handsL": lhPoseArr[i],
-                    "frame": i+1
-                },
-                "frame": i+1
-            }
-            frameArr.append(frame_object)
-
-        return frameArr
-
-# Function to convert NumPy types to native Python types
-def convert_numpy_to_native(data):
-    if isinstance(data, dict):
-        return {key: convert_numpy_to_native(value) for key, value in data.items()}
-    elif isinstance(data, list):
-        return [convert_numpy_to_native(element) for element in data]
-    elif isinstance(data, np.ndarray):
-        return data.tolist()
-    elif isinstance(data, (np.float32, np.float64)):
-        return float(data)
-    elif isinstance(data, (np.int32, np.int64)):
-        return int(data)
-    else:
-        return data
 
 if __name__ == '__main__':
     isExist = os.path.exists(TEMP_FILE_FOLDER)
@@ -587,7 +489,7 @@ if __name__ == '__main__':
         os.makedirs(TEMP_FILE_FOLDER)
     ssl._create_default_https_context = ssl._create_unverified_context
 
-    if os.getenv('PM2_HOME'):
+    if is_in_pm2_environment():
         port_number = int(os.getenv('PORT', 3002))
         ssl_context = (os.getenv('CERTIFICATE_PATH'), os.getenv('PRIVATE_KEY_PATH'))
         options = {
