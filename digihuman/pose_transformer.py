@@ -23,28 +23,28 @@ def Complete_pose_Buffer(pose):
         body_predictions = Create_Dummy_Pose_Buffer()
         for landmark_index, (body_landmark, body_conf_value) in enumerate(zip(body_frame_data[0], body_conf[0])):
             body_pose_pred = {
-                'x': (body_landmark[0] / rows),
-                'y': (body_landmark[1] / cols),
-                'z': ((body_landmark[2] / 500) - 1.25),
-                'visibility': body_conf_value
+                'x': float(body_landmark[0] / rows),
+                'y': float(body_landmark[1] / cols),
+                'z': float((body_landmark[2] / 500) - 1.25),
+                'visibility': float(body_conf_value)
             }
-            if isinstance(body_landmark[0], np.float32):
-                if landmark_index == 0:
-                    body_predictions[11] = body_pose_pred
-                elif landmark_index == 1:
-                    body_predictions[12] = body_pose_pred
-                elif landmark_index == 2:
-                    body_predictions[13] = body_pose_pred
-                elif landmark_index == 3:
-                    body_predictions[14] = body_pose_pred
-                elif landmark_index == 4:
-                    body_predictions[15] = body_pose_pred
-                elif landmark_index == 5:
-                    body_predictions[16] = body_pose_pred
-                elif landmark_index == 6:
-                    body_predictions[23] = body_pose_pred
-                elif landmark_index == 7:
-                    body_predictions[24] = body_pose_pred
+            # if isinstance(body_landmark[0], np.float32):
+            if landmark_index == 0:
+                body_predictions[11] = body_pose_pred
+            elif landmark_index == 1:
+                body_predictions[12] = body_pose_pred
+            elif landmark_index == 2:
+                body_predictions[13] = body_pose_pred
+            elif landmark_index == 3:
+                body_predictions[14] = body_pose_pred
+            elif landmark_index == 4:
+                body_predictions[15] = body_pose_pred
+            elif landmark_index == 5:
+                body_predictions[16] = body_pose_pred
+            elif landmark_index == 6:
+                body_predictions[23] = body_pose_pred
+            elif landmark_index == 7:
+                body_predictions[24] = body_pose_pred
                 # body_predictions.append(body_pose_pred)
         add_extra_points(body_predictions)
         body_pose_obj = {
@@ -61,10 +61,10 @@ def Complete_pose_Buffer(pose):
         lh_predictions = []
         for landmark_index, (lh_landmark, lh_conf_value) in enumerate(zip(lh_frame_data[0], lh_conf[0])):
             lh_pose_pred = {
-                'x': (lh_landmark[0] / rows),
-                'y': (lh_landmark[1] / cols),
-                'z': ((lh_landmark[2] / 500) - 1.25),
-                'visibility': (lh_conf_value)
+                'x': float(lh_landmark[0] / rows),
+                'y': float(lh_landmark[1] / cols),
+                'z': float((lh_landmark[2] / 500) - 1.25),
+                'visibility': float(lh_conf_value)
             }
             if isinstance(lh_landmark[0], np.float32):
                 lh_predictions.append(lh_pose_pred)
@@ -76,10 +76,10 @@ def Complete_pose_Buffer(pose):
         rh_predictions = []
         for landmark_index, (rh_landmark, rh_conf_value) in enumerate(zip(rh_frame_data[0], rh_conf[0])):
             rh_pose_pred = {
-                'x': (rh_landmark[0] / rows),
-                'y': (rh_landmark[1] / cols),
-                'z': ((rh_landmark[2] / 500) - 1.25),
-                'visibility': rh_conf_value
+                'x': float(rh_landmark[0] / rows),
+                'y': float(rh_landmark[1] / cols),
+                'z': float((rh_landmark[2] / 500) - 1.25),
+                'visibility': float(rh_conf_value)
             }
             if isinstance(rh_landmark[0], np.float32):
                 rh_predictions.append(rh_pose_pred)

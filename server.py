@@ -221,9 +221,9 @@ def upload_holistic_video():
                 full_pose_video_data[file_name] = []
                 full_pose_video_data_statues[file_name] = False
                 print("request type video")
-            #glosses = text_to_gloss('hello', 'en')
-            #poses = gloss_to_pose(glosses, None, 'en', 'ase')
-            #calculate_video_full_pose_estimation(file_name, poses)
+            # glosses = text_to_gloss('hello', 'en')
+            # poses = gloss_to_pose(glosses, None, 'en', 'ase')
+            # calculate_video_full_pose_estimation(file_name, poses)
             calculate_video_full_pose_estimation(file_name)
             cap = cv2.VideoCapture(file_name)
             tframe = cap.get(cv2.CAP_PROP_FRAME_COUNT)
@@ -333,7 +333,8 @@ def get_frame_full_pose():
                     time.sleep(0.1)
                 else:
                     return Response("Done")
-        except:
+        except Exception as e:
+            print(e)
             return Response("Good luck!")
 
 @app.route("/face", methods=["POST"])
