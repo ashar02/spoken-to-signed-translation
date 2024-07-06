@@ -338,7 +338,8 @@ def get_frame_full_pose():
                     time.sleep(0.1)
                 else:
                     return Response("Done")
-        except:
+        except Exception as e:
+            print(e)
             return Response("Good luck!")
 
 @app.route("/face", methods=["POST"])
