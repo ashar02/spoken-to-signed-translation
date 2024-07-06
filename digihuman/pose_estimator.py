@@ -358,7 +358,18 @@ def Complete_pose_Video(video_path,debug=False):
     mp_holistic = mp.solutions.holistic
     mp_hands = mp.solutions.hands
     json_path = "TestPath"
+    def crop_to_square(frame, target_size=1250):
+        rows, cols, _ = frame.shape
+        crop_size = min(rows, cols)
+        top = (rows - crop_size) // 2
+        left = (cols - crop_size) // 2
+        cropped_frame = frame[top:top + crop_size, left:left + crop_size]
+        return cv2.resize(cropped_frame, (target_size, target_size), interpolation=cv2.INTER_LANCZOS4)
+
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print("Error opening video file:", video_path)
+        return
     # cap = cv2.VideoCapture(0)
     with mp_holistic.Holistic(
         min_detection_confidence=0.5,
@@ -373,6 +384,7 @@ def Complete_pose_Video(video_path,debug=False):
 
         # To improve performance, optionally mark the image as not writeable to
         # pass by reference.
+        image = crop_to_square(image)
         image.flags.writeable = True
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         results = holistic.process(image)

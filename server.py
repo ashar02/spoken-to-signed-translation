@@ -4,8 +4,9 @@ from spoken_to_signed.text_to_gloss.spacylemma import text_to_gloss
 from spoken_to_signed.gloss_to_pose import gloss_to_pose, CSVPoseLookup
 from dotenv import load_dotenv
 from io import BytesIO
-from flask_compress import Compress
-from gunicorn.app.base import BaseApplication
+if not os.name == 'nt':
+    from flask_compress import Compress
+    from gunicorn.app.base import BaseApplication
 from pose_format.utils.holistic import load_holistic
 from pose_format.utils.generic import reduce_holistic
 import cv2
@@ -31,13 +32,15 @@ full_pose_video_data = {}
 full_pose_video_data_statues = {}
 face_pose_video_data = {}
 face_pose_video_data_statues = {}
+holistic_uploader_use_gloss = False
 load_dotenv()
 mimetypes.init()
 TEMP_FILE_FOLDER = "temp/"
 app = Flask(__name__)
 max_content_length = int(os.getenv('MAX_CONTENT_LENGTH', 10)) * 1024 * 1024
 app.config['MAX_CONTENT_LENGTH'] = max_content_length
-Compress(app)
+if not os.name == 'nt':
+    Compress(app)
 
 connection_string = os.getenv('DB_URI')
 client = MongoClient(connection_string)
@@ -202,8 +205,7 @@ def upload_holistic_video():
     if 'file' not in request.files:
         return "No file!"
     f = request.files['file']
-    postfix = f.filename.split(".")[-1]
-    file_name = TEMP_FILE_FOLDER + str(uuid.uuid4()) + "." + postfix
+    file_name = TEMP_FILE_FOLDER + str(uuid.uuid4()) + '-' + f.filename.replace(" ", "")
     f.save(file_name)
     # checking file type
     mimestart = mimetypes.guess_type(file_name)[0]
@@ -221,16 +223,20 @@ def upload_holistic_video():
                 full_pose_video_data[file_name] = []
                 full_pose_video_data_statues[file_name] = False
                 print("request type video")
-            #glosses = text_to_gloss('hello', 'en')
-            #poses = gloss_to_pose(glosses, None, 'en', 'ase')
-            #calculate_video_full_pose_estimation(file_name, poses)
-            calculate_video_full_pose_estimation(file_name)
-            cap = cv2.VideoCapture(file_name)
-            tframe = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-            width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-            height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            aspectRatio = width / height
-            cap.release()
+            if holistic_uploader_use_gloss:
+                glosses = text_to_gloss('allright', 'en')
+                poses = gloss_to_pose(glosses, None, 'en', 'ase')
+                calculate_video_full_pose_estimation(file_name, poses)
+                tframe = poses.body.data.shape[0]
+                width = poses.header.dimensions.width
+                height = poses.header.dimensions.height
+                aspectRatio = width / height
+            else:
+                calculate_video_full_pose_estimation(file_name)
+                tframe = len(full_pose_video_data[file_name])
+                width = full_pose_video_data[file_name][0]['bodyPose']['width']
+                height = full_pose_video_data[file_name][0]['bodyPose']['height']
+                aspectRatio = width / height
             res = {
                 'file' : file_name,
                 'totalFrames': int(tframe),
@@ -251,8 +257,7 @@ def upload_face_video():
     if 'file' not in request.files:
         return "No file!"
     f = request.files['file']
-    postfix = f.filename.split(".")[-1]
-    file_name = TEMP_FILE_FOLDER + str(uuid.uuid4()) + "." + postfix
+    file_name = TEMP_FILE_FOLDER + str(uuid.uuid4()) + '-' + f.filename.replace(" ", "")
     f.save(file_name)
     # checking file type
     mimestart = mimetypes.guess_type(file_name)[0]
