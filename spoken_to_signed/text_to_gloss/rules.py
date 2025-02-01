@@ -7,8 +7,8 @@ from .common import load_spacy_model
 from .types import Gloss
 
 LANGUAGE_MODELS_RULES = {
-    "de": "de_core_news_lg",
-    "fr": "fr_core_news_lg"
+    "de": ("de_core_news_lg", "de_core_news_md", "de_core_news_sm"),
+    "fr": ("fr_core_news_lg", "fr_core_news_md", "fr_core_news_sm"),
 }
 
 
@@ -218,9 +218,7 @@ def gloss_de_poss_pronoun(token):
     return '(' + pposat_map[token.text[0]] + ')'
 
 
-def glossify(tokens) -> List[str]:
-    glosses = []
-
+def glossify(tokens):
     for t in tokens:
         # print_token(t)
 
@@ -255,13 +253,11 @@ def glossify(tokens) -> List[str]:
               or (t.lemma_ == "avoir" and t.pos_ == "AUX")):  # FR
             continue
 
-        # DE: lemma of NER-identified location entities preceded by preposition
-        if t.ent_type_ == "LOC" and t.head.pos_ == "ADP":
-            glosses.append(t.head.text)
+        # # DE: lemma of NER-identified location entities preceded by preposition
+        # if t.ent_type_ == "LOC" and t.head.pos_ == "ADP":
+        #     glosses.append(t.head.text)
 
-        glosses.append(gloss)
-
-    return glosses
+        yield (gloss, t.text)
 
 
 def clause_to_gloss(clause, lang: str, punctuation=False) -> Tuple[List[str], List[str]]:
@@ -269,7 +265,7 @@ def clause_to_gloss(clause, lang: str, punctuation=False) -> Tuple[List[str], Li
     clause = reorder_svo_triplets(clause)
 
     # Rule 2: Discard all tokens with unwanted PoS
-    tokens = [t for t in clause if t.pos_ in {"NOUN", "VERB", "PROPN", "ADJ", "NUM", "AUX", "SCONJ"}
+    tokens = [t for t in clause if t.pos_ in {"NOUN", "VERB", "PROPN", "ADJ", "NUM", "AUX", "SCONJ", "X"}
               or (punctuation and t.pos_ == "PUNCT")
               or (t.pos_ == "ADV" and t.dep_ != "svp")
               or (t.pos_ == "PRON" and t.dep_ != "ep")
@@ -297,32 +293,32 @@ def clause_to_gloss(clause, lang: str, punctuation=False) -> Tuple[List[str], Li
     tokens = [t for t in tokens if t not in locations]
     tokens = locations + tokens
 
-    # Rule 5: Move negation words to the end
-    negations = [t for t in tokens if t.dep_ == "ng"]
-    tokens = [t for t in tokens if t not in negations] + negations
-
-    if len(tokens) > 0 and lang == "de":
-        from spacy.tokens import Token
-
-        token = tokens[0]
-        extra_token_id = len(token.doc)
-
-        neg_token = Token(token.vocab, token.doc, extra_token_id)
-        neg_token.lemma_ = "<neg>"
-        extra_token_id += 1
-
-        neg_close_token = Token(token.vocab, token.doc, extra_token_id)
-        neg_close_token.lemma_ = "</neg>"
-        extra_token_id += 1
-
-        for token in list(tokens):
-            if token.dep_ == "ng":
-                tokens.insert(0, neg_token)
-                tokens.remove(token)
-                tokens.append(neg_close_token)
-            elif token.lemma_ == "kein":
-                tokens.insert(tokens.index(token), neg_token)
-                tokens.append(neg_close_token)
+    # # Rule 5: Move negation words to the end
+    # negations = [t for t in tokens if t.dep_ == "ng"]
+    # tokens = [t for t in tokens if t not in negations] + negations
+    #
+    # if len(tokens) > 0 and lang == "de":
+    #     from spacy.tokens import Token
+    #
+    #     token = tokens[0]
+    #     extra_token_id = len(token.doc)
+    #
+    #     neg_token = Token(token.vocab, token.doc, extra_token_id)
+    #     neg_token.lemma_ = "<neg>"
+    #     extra_token_id += 1
+    #
+    #     neg_close_token = Token(token.vocab, token.doc, extra_token_id)
+    #     neg_close_token.lemma_ = "</neg>"
+    #     extra_token_id += 1
+    #
+    #     for token in list(tokens):
+    #         if token.dep_ == "ng":
+    #             tokens.insert(0, neg_token)
+    #             tokens.remove(token)
+    #             tokens.append(neg_close_token)
+    #         elif token.lemma_ == "kein":
+    #             tokens.insert(tokens.index(token), neg_token)
+    #             tokens.append(neg_close_token)
 
     # TODO: is compound splitting necessary? only taking the first noun loses information!
     # Rule 6: Replace compound nouns with the first noun
@@ -331,9 +327,7 @@ def clause_to_gloss(clause, lang: str, punctuation=False) -> Tuple[List[str], Li
             tokens[i] = t.head
 
     # Rule 7: Glossify all tokens, i.e. lemmatize most tokens
-    glosses = glossify(tokens)
-
-    tokens = [t.text for t in tokens]
+    glosses, tokens = zip(*list(glossify(tokens)))
 
     return glosses, tokens
 
@@ -376,16 +370,16 @@ def text_to_gloss_given_spacy_model(text: str, spacy_model, lang: str = 'de', pu
     return {"glosses": glosses_all_clauses, "tokens": tokens_all_clauses, "gloss_string": gloss_string}
 
 
-def text_to_gloss(text: str, language: str, punctuation=False) -> Gloss:
+def text_to_gloss(text: str, language: str, punctuation=False, **kwargs) -> List[Gloss]:
     if language not in LANGUAGE_MODELS_RULES:
         raise NotImplementedError("Don't know language '%s'." % language)
 
-    model_name = LANGUAGE_MODELS_RULES[language]
+    model_names = LANGUAGE_MODELS_RULES[language]
 
-    spacy_model = load_spacy_model(model_name)
+    spacy_model = load_spacy_model(model_names)
     output_dict = text_to_gloss_given_spacy_model(text, spacy_model=spacy_model, lang=language, punctuation=punctuation)
 
     glosses = output_dict["glosses"]
     tokens = output_dict["tokens"]
 
-    return list(zip(tokens, glosses))
+    return [list(zip(tokens, glosses))]

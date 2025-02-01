@@ -23,8 +23,8 @@ def init_index(index_path: str):
 def load_signsuisse(directory_path: str) -> List[Dict[str, str]]:
     try:
         import sign_language_datasets
-    except ImportError:
-        raise ImportError("Please install sign_language_datasets. pip install sign-language-datasets")
+    except ImportError as e:
+        raise ImportError("Please install sign_language_datasets. pip install sign-language-datasets") from e
 
     import tensorflow_datasets as tfds
     # noinspection PyUnresolvedReferences
@@ -81,7 +81,8 @@ def normalize_row(row: Dict[str, str]):
     if row['glosses'] == "" and row['words'] != "":
         from spoken_to_signed.text_to_gloss.simple import text_to_gloss
         try:
-            glosses = [g for w, g in text_to_gloss(text=row['words'], language=row['spoken_language'])]
+            sentences = text_to_gloss(text=row['words'], language=row['spoken_language'])
+            glosses = [g for sentence in sentences for w, g in sentence]
             row['glosses'] = " ".join(glosses)
         except ValueError as e:
             if not ('Language' in str(e) and 'not supported' in str(e)):

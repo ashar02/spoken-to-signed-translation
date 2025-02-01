@@ -2,21 +2,27 @@ import argparse
 import importlib
 import os
 import tempfile
+from typing import List
 
 from pose_format import Pose
 
-from spoken_to_signed.gloss_to_pose import gloss_to_pose, CSVPoseLookup
+from spoken_to_signed.gloss_to_pose import gloss_to_pose, CSVPoseLookup, concatenate_poses
+from spoken_to_signed.gloss_to_pose.lookup.fingerspelling_lookup import FingerspellingPoseLookup
 from spoken_to_signed.text_to_gloss.types import Gloss
 
 
-def _text_to_gloss(text: str, language: str, glosser: str) -> Gloss:
+def _text_to_gloss(text: str, language: str, glosser: str, **kwargs) -> List[Gloss]:
     module = importlib.import_module(f"spoken_to_signed.text_to_gloss.{glosser}")
-    return module.text_to_gloss(text=text, language=language)
+    return module.text_to_gloss(text=text, language=language, **kwargs)
 
 
-def _gloss_to_pose(gloss: Gloss, lexicon: str, spoken_language: str, signed_language: str) -> Pose:
-    pose_lookup = CSVPoseLookup(lexicon)
-    return gloss_to_pose(gloss, pose_lookup, spoken_language, signed_language)
+def _gloss_to_pose(sentences: List[Gloss], lexicon: str, spoken_language: str, signed_language: str) -> Pose:
+    fingerspelling_lookup = FingerspellingPoseLookup()
+    pose_lookup = CSVPoseLookup(lexicon, backup=fingerspelling_lookup)
+    poses = [gloss_to_pose(gloss, pose_lookup, spoken_language, signed_language) for gloss in sentences]
+    if len(poses) == 1:
+        return poses[0]
+    return concatenate_poses(poses, trim=False)
 
 
 def _get_models_dir():
@@ -51,10 +57,10 @@ def _pose_to_video(pose: Pose, video_path: str):
         pose.write(f)
 
     args = ["pose_to_video", "--type=pix_to_pix",
-                    "--model", pix2pix_path,
-                    "--pose", pose_path,
-                    "--video", video_path,
-                    "--upscale"]
+            "--model", pix2pix_path,
+            "--pose", pose_path,
+            "--video", video_path,
+            "--upscale"]
     print(" ".join(args))
     subprocess.run(args, shell=True, check=True)
 
@@ -63,7 +69,7 @@ def _text_input_arguments(parser: argparse.ArgumentParser):
     parser.add_argument("--text", type=str, required=True)
     parser.add_argument("--glosser", choices=['simple', 'spacylemma', 'rules', 'nmt'], required=True)
     parser.add_argument("--spoken-language", choices=['de', 'fr', 'it', 'en'], required=True)
-    parser.add_argument("--signed-language", choices=['sgg', 'gsg', 'bfi'], required=True)
+    parser.add_argument("--signed-language", choices=['sgg', 'gsg', 'bfi', 'ase'], required=True)
 
 
 def text_to_gloss():
@@ -73,8 +79,8 @@ def text_to_gloss():
 
     print("Text to gloss")
     print("Input text:", args.text)
-    gloss = _text_to_gloss(args.text, args.spoken_language, args.glosser)
-    print("Output gloss:", gloss)
+    sentences = _text_to_gloss(args.text, args.spoken_language, args.glosser)
+    print("Output gloss:", sentences)
 
 
 def pose_to_video():
@@ -100,8 +106,8 @@ def text_to_gloss_to_pose():
     args_parser.add_argument("--pose", type=str, required=True)
     args = args_parser.parse_args()
 
-    gloss = _text_to_gloss(args.text, args.spoken_language, args.glosser)
-    pose = _gloss_to_pose(gloss, args.lexicon, args.spoken_language, args.signed_language)
+    sentences = _text_to_gloss(args.text, args.spoken_language, args.glosser)
+    pose = _gloss_to_pose(sentences, args.lexicon, args.spoken_language, args.signed_language)
 
     with open(args.pose, "wb") as f:
         pose.write(f)
@@ -118,10 +124,13 @@ def text_to_gloss_to_pose_to_video():
     args_parser.add_argument("--video", type=str, required=True)
     args = args_parser.parse_args()
 
-    gloss = _text_to_gloss(args.text, args.spoken_language, args.glosser)
-    pose = _gloss_to_pose(gloss, args.lexicon, args.spoken_language, args.signed_language)
+    sentences = _text_to_gloss(args.text, args.spoken_language, args.glosser, signed_language=args.signed_language)
+    pose = _gloss_to_pose(sentences, args.lexicon, args.spoken_language, args.signed_language)
     _pose_to_video(pose, args.video)
 
     print("Text to gloss to pose to video")
     print("Input text:", args.text)
     print("Output video:", args.video)
+
+if __name__ == "__main__":
+    text_to_gloss_to_pose()

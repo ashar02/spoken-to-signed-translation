@@ -1,3 +1,5 @@
+from typing import List
+
 from .types import Gloss
 from .common import load_spacy_model
 
@@ -11,7 +13,7 @@ LANGUAGE_MODELS_SPACY = {
 spacy_model_g = load_spacy_model('en_core_web_lg', disable=("parser", "ner"))
 
 
-def text_to_gloss(text: str, language: str, ignore_punctuation: bool = False) -> Gloss:
+def text_to_gloss(text: str, language: str, ignore_punctuation: bool = False, **kwargs) -> List[Gloss]:
     global spacy_model_g
 
     if language not in LANGUAGE_MODELS_SPACY:
@@ -36,4 +38,4 @@ def text_to_gloss(text: str, language: str, ignore_punctuation: bool = False) ->
         gloss = (token.text, token.lemma_)
         glosses.append(gloss)
 
-    return glosses
+    return [glosses]

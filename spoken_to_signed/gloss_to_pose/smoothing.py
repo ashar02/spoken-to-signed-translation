@@ -1,3 +1,4 @@
+import math
 from typing import List
 
 import numpy as np
@@ -46,12 +47,17 @@ def concatenate_poses(poses: List[Pose], padding: NumPyPoseBody, interpolation='
     new_conf = np.concatenate([pose.body.confidence for pose in poses])
     new_body = NumPyPoseBody(fps=poses[0].body.fps, data=new_data, confidence=new_conf)
     new_body = new_body.interpolate(kind=interpolation)
+
+    # If a point appears in pose1 and pose3 but not pose2, it will be smoothed in pose2, which is ugly
+    # TODO: for every conf, if all of it is 0, update it in the new one
+
     return Pose(header=poses[0].header, body=new_body)
 
 
 def find_best_connection_point(pose1: Pose, pose2: Pose, window=0.3):
-    p1_size = int(len(pose1.body.data) * window)
-    p2_size = int(len(pose2.body.data) * window)
+    # window size in seconds, or percentage of the pose, whichever is smaller
+    p1_size = math.ceil(min(window * pose1.body.fps, len(pose1.body.data) * window))
+    p2_size = math.ceil(min(window * pose2.body.fps, len(pose2.body.data) * window))
 
     last_data = pose1.body.data[len(pose1.body.data) - p1_size:]
     first_data = pose2.body.data[:p2_size]
@@ -67,7 +73,7 @@ def find_best_connection_point(pose1: Pose, pose2: Pose, window=0.3):
 
 def smooth_concatenate_poses(poses: List[Pose], padding=0.20) -> Pose:
     if len(poses) == 0:
-        raise Exception("No poses to smooth")
+        raise ValueError("No poses to smooth")
 
     if len(poses) == 1:
         return poses[0]
